@@ -1,17 +1,32 @@
 esp32:
-  board: esp32dev
+  board: esp32-c3-devkitm-1
   framework:
-    #type: arduino
-    type: esp-idf
+    type: arduino
 
+# TODO switch here between can_bus_esp32 and can_bus_mcp2515
+# canbus:
+#   - platform: esp32_can
+#     setup_priority: 1000
+#     id: can_bus_esp32
+#     tx_pin: GPIO7
+#     rx_pin: GPIO6
+#     can_id: 0
+#     bit_rate: 250kbps
+
+spi:
+  id: McpSpi
+  clk_pin: GPIO10
+  mosi_pin: GPIO7
+  miso_pin: GPIO6
 canbus:
-  - platform: esp32_can
-    setup_priority: 1000
-    id: can_bus
-    tx_pin: GPIO22
-    rx_pin: GPIO23
+  - platform: mcp2515
+    id: can_bus_mcp2515
+    clock: 8MHz
+    spi_id: McpSpi
+    cs_pin: GPIO2
     can_id: 0
-    bit_rate: 250kbps
+    use_extended_id: false
+    bit_rate: 10kbps
 
 esphome:
   name: can-node-${node_id}
@@ -26,7 +41,10 @@ esphome:
 canopen:
   setup_priority: 999
   id: can_gate
-  canbus_id: can_bus
+  # TODO switch here between can_bus_esp32 and can_bus_mcp2515
+  canbus_id: can_bus_mcp2515
+  # canbus_id: can_bus_esp32
+
   node_id: ${node_id}
   sw_version: 0.0.1
   hw_version: 0.0.1
@@ -65,12 +83,12 @@ logger:
 
 # Enable Home Assistant API
 api:
- password: ""
- reboot_timeout: 0s
+  password: ""
+  reboot_timeout: 0s
 
 ota:
- password: ""
- safe_mode: false
+  password: ""
+  safe_mode: false
 
 external_components:
   - source: github://mrk-its/esphome-canopen
@@ -81,7 +99,6 @@ external_components:
 button:
   - platform: factory_reset
     name: Restart with Factory Default Settings
-
 
 sensor:
   - platform: uptime
@@ -145,7 +162,6 @@ text_sensor:
       static std::string states[] = {"STOPPED", "RUNNING", "BUS_OFF", "RECOVERING"};
       return states[id(can_gate).status.state];
     update_interval: 5s
-
     on_value:
       - if:
           condition:
@@ -178,14 +194,14 @@ switch:
   - platform: gpio
     name: "Led"
     id: gpio_led
-    pin: GPIO2
+    pin: GPIO0
 
 binary_sensor:
   - platform: gpio
     name: "GPIO binary sensor"
     id: gpio_binary_sensor
     pin:
-      number: GPIO0
+      number: GPIO4 # see spring clamps:  Pin #1 (near K1) is 3V3, Pin #2 GND,  Pin 3 is GPIO4 with pullup to 3V3 .... Pin 6 is near alive label
       inverted: true
     on_click:
       - switch.toggle: gpio_led
